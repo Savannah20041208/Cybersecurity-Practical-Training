@@ -279,7 +279,7 @@ const tabs = [
   { id: 'literature', name: '文献', count: '45,891', icon: 'BookIcon' }
 ]
 
-// 真实的肝脏疾病相关药物数据
+// 真实的医疗相关药物数据
 const drugs = ref([
   {
     id: 'DRUG001',
@@ -462,14 +462,14 @@ const diseases = ref([
   {
     id: 'DIS001',
     name: '肝纤维化',
-    category: '肝脏疾病',
+    category: '医疗疾病',
     symptoms: '肝脏硬化、功能减退、门脉高压',
     drugCount: 15
   },
   {
     id: 'DIS002',
     name: '肝硬化',
-    category: '肝脏疾病',
+    category: '医疗疾病',
     symptoms: '腹水、黄疸、肝性脑病、脾肿大',
     drugCount: 23
   },

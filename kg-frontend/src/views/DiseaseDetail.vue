@@ -328,7 +328,7 @@ const mockDisease = {
   id: 'DIS001',
   name: '肝纤维化',
   englishName: 'Hepatic Fibrosis',
-  category: '肝脏疾病',
+  category: '医疗疾病',
   severity: '慢性进展性',
   icd10: 'K74.0',
   prevalence: '全球约2-3%',

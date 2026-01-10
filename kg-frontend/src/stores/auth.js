@@ -105,7 +105,15 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = null
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_user')
+      localStorage.removeItem('demo_mode')
     }
+  }
+
+  // 清除所有认证状态
+  const clearAuth = () => {
+    token.value = null
+    user.value = null
+    localStorage.clear()
   }
 
   // 获取用户信息
@@ -165,7 +173,8 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
     fetchProfile,
     checkAuth,
-    authenticatedRequest
+    authenticatedRequest,
+    clearAuth
   }
 })
 

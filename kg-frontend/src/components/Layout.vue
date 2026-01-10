@@ -5,8 +5,8 @@
       <div class="max-w-7xl mx-auto flex justify-between items-center">
         <div class="flex items-center gap-3 group">
           <router-link to="/" class="flex items-center gap-3 hover:opacity-80 transition-opacity">
-            <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform">KG</div>
-            <h1 class="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-600">肝脏疾病药物重定位知识图谱</h1>
+            <div class="w-10 h-10 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold shadow-md group-hover:scale-105 transition-transform">MK</div>
+            <h1 class="text-xl md:text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-gray-800 to-gray-600">智慧医疗知识服务平台</h1>
           </router-link>
         </div>
         
@@ -67,7 +67,7 @@
 
     <!-- 页脚 -->
     <footer class="bg-white/80 backdrop-blur-md py-4 px-6 text-center text-sm text-gray-500 border-t border-gray-100">
-      <p>© 2025 肝脏疾病药物重定位知识图谱系统 | 仅供研究使用</p>
+      <p>© 2025 智慧医疗知识服务平台 | 仅供研究使用</p>
       <div class="mt-2 text-xs">
         <a href="#" class="hover:text-blue-600 transition-colors">使用说明</a> |
         <a href="#" class="hover:text-blue-600 transition-colors">关于系统</a> |
@@ -79,7 +79,9 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useAuthStore } from '../stores/auth'
 
+const authStore = useAuthStore()
 const mobileMenuOpen = ref(false)
 
 // 导航菜单项

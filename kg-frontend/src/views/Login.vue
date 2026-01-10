@@ -4,14 +4,15 @@
       <!-- Logo和标题 -->
       <div class="text-center">
         <div class="mx-auto w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-2xl shadow-lg">
-          KG
+          MK
         </div>
         <h2 class="mt-6 text-3xl font-bold text-gray-900">
           登录系统
         </h2>
-        <p class="mt-2 text-sm text-gray-600">
-          肝脏疾病药物重定位系统
+        <p class="text-center text-sm text-gray-600 mb-6">
+          请登录以访问智慧医疗知识服务平台
         </p>
+
       </div>
 
       <!-- 登录表单 -->
@@ -110,7 +111,6 @@
             {{ loading ? '登录中...' : '登录' }}
           </button>
         </form>
-
 
       </div>
     </div>
@@ -289,8 +289,23 @@ const handleRegister = async () => {
   }
 }
 
+
+// 清理演示模式数据
+const cleanupDemoData = () => {
+  // 清除所有可能的演示模式相关数据
+  if (localStorage.getItem('demo_mode') === 'true') {
+    localStorage.removeItem('demo_mode')
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
+    console.log('已清理演示模式数据')
+  }
+}
+
 // 检查是否已登录
 onMounted(() => {
+  // 先清理演示模式数据
+  cleanupDemoData()
+  
   if (authStore.isAuthenticated) {
     router.push('/')
   }

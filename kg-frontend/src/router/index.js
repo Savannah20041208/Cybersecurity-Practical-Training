@@ -67,9 +67,10 @@ const router = createRouter({
 // 路由守卫，处理认证和更新页面标题
 router.beforeEach(async (to, from, next) => {
   // 更新页面标题
-  document.title = to.meta.title ? `${to.meta.title} - 肝脏疾病药物重定位知识图谱` : '肝脏疾病药物重定位知识图谱'
+  document.title = to.meta.title ? `${to.meta.title} - 智慧医疗知识服务平台` : '智慧医疗知识服务平台'
   
   const authStore = useAuthStore()
+  
   
   // 检查是否需要认证
   if (to.meta.requiresAuth) {
@@ -78,6 +79,7 @@ router.beforeEach(async (to, from, next) => {
       next({ name: 'Login', query: { redirect: to.fullPath } })
       return
     }
+    
     
     // 已登录但需要验证token有效性
     try {
