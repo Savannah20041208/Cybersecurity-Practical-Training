@@ -8,10 +8,11 @@ export const useAuthStore = defineStore('auth', () => {
   // 状态
   const token = ref(localStorage.getItem('auth_token') || null)
   const user = ref(JSON.parse(localStorage.getItem('auth_user') || 'null'))
+  const isDemoMode = ref(localStorage.getItem('demo_mode') === 'true')
   const loading = ref(false)
 
   // 计算属性
-  const isAuthenticated = computed(() => !!token.value && !!user.value)
+  const isAuthenticated = computed(() => (!!token.value && !!user.value) || isDemoMode.value)
 
   // API请求封装
   const apiRequest = async (url, options = {}) => {
@@ -91,7 +92,7 @@ export const useAuthStore = defineStore('auth', () => {
   const logout = async () => {
     try {
       // 如果有token，通知后端登出
-      if (token.value) {
+      if (token.value && !isDemoMode.value) {
         await apiRequest('/api/auth/logout', {
           method: 'POST'
         })
@@ -103,6 +104,7 @@ export const useAuthStore = defineStore('auth', () => {
       // 清除本地存储
       token.value = null
       user.value = null
+      isDemoMode.value = false
       localStorage.removeItem('auth_token')
       localStorage.removeItem('auth_user')
       localStorage.removeItem('demo_mode')
@@ -113,7 +115,29 @@ export const useAuthStore = defineStore('auth', () => {
   const clearAuth = () => {
     token.value = null
     user.value = null
+    isDemoMode.value = false
     localStorage.clear()
+  }
+
+  // 启用演示模式
+  const enableDemoMode = () => {
+    isDemoMode.value = true
+    localStorage.setItem('demo_mode', 'true')
+    // 设置演示用户信息
+    user.value = {
+      username: 'demo_user',
+      role: 'user',
+      displayName: '演示用户'
+    }
+  }
+
+  // 禁用演示模式
+  const disableDemoMode = () => {
+    isDemoMode.value = false
+    localStorage.removeItem('demo_mode')
+    if (user.value && user.value.username === 'demo_user') {
+      user.value = null
+    }
   }
 
   // 获取用户信息
@@ -138,6 +162,9 @@ export const useAuthStore = defineStore('auth', () => {
   // 检查token有效性
   const checkAuth = async () => {
     if (!token.value) return false
+    
+    // 如果是演示模式，直接返回true
+    if (isDemoMode.value) return true
 
     try {
       await fetchProfile()
@@ -163,6 +190,7 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     user,
     loading,
+    isDemoMode,
     
     // 计算属性
     isAuthenticated,
@@ -174,7 +202,9 @@ export const useAuthStore = defineStore('auth', () => {
     fetchProfile,
     checkAuth,
     authenticatedRequest,
-    clearAuth
+    clearAuth,
+    enableDemoMode,
+    disableDemoMode
   }
 })
 

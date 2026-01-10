@@ -2,15 +2,40 @@
   <div class="w-full bg-white rounded-2xl shadow-lg overflow-hidden transition-all duration-300 hover:shadow-xl border border-gray-100">
     <!-- 对话历史区域 -->
     <div class="p-6 max-h-[500px] overflow-y-auto space-y-6" id="chatHistory">
-      <!-- 空状态提示 -->
+      <!-- 示例问题提示 -->
       <div v-if="messages.length === 0" class="text-center text-gray-400 py-12 bg-gradient-to-b from-gray-50 to-transparent rounded-xl mx-4">
         <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-8 h-8 text-blue-600">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
           </svg>
         </div>
-        <p class="font-medium">请输入您的医疗健康相关问题</p>
-        <p class="text-sm mt-2">我将为您提供专业的医疗知识问答服务</p>
+        <p class="font-medium">请输入您的问题，例如：</p>
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 px-4">
+          <button
+              @click="useExample('我有头痛和发热症状，可能是什么疾病？')"
+              class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg text-sm transition-all hover:shadow-md transform hover:-translate-y-1"
+          >
+            我有头痛和发热症状，可能是什么疾病？
+          </button>
+          <button
+              @click="useExample('高血压患者应该注意什么？')"
+              class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg text-sm transition-all hover:shadow-md transform hover:-translate-y-1"
+          >
+            高血压患者应该注意什么？
+          </button>
+          <button
+              @click="useExample('阿司匹林有哪些副作用？')"
+              class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg text-sm transition-all hover:shadow-md transform hover:-translate-y-1"
+          >
+            阿司匹林有哪些副作用？
+          </button>
+          <button
+              @click="useExample('糖尿病患者的饮食建议有哪些？')"
+              class="bg-blue-50 hover:bg-blue-100 text-blue-700 px-4 py-3 rounded-lg text-sm transition-all hover:shadow-md transform hover:-translate-y-1"
+          >
+            糖尿病患者的饮食建议有哪些？
+          </button>
+        </div>
       </div>
 
       <!-- 消息列表 -->
@@ -147,8 +172,53 @@ const loading = ref(false)
 const chatHistory = ref(null)
 
 // 本地问答数据库
-const localQA = []
+const localQA = [
+  {
+    keywords: ['头痛', '发热', '症状', '疾病'],
+    question: '我有头痛和发热症状，可能是什么疾病？',
+    answer: '头痛和发热是常见的症状组合，可能的疾病包括：\n\n1. 感冒或流感：最常见的原因，通常伴有鼻塞、咳嗽等症状\n2. 细菌感染：如扁桃体炎、肺炎等\n3. 病毒感染：如病毒性脑炎（较严重）\n4. 偏头痛：可能伴有轻微发热\n\n建议：\n多休息，多喝水\n如果发热超过38.5°C或症状持续加重，请及时就医\n如出现剧烈头痛、颈部僵硬等症状，应立即就医'
+  },
+  {
+    keywords: ['高血压', '注意', '患者'],
+    question: '高血压患者应该注意什么？',
+    answer: '高血压患者需要注意以下几个方面：\n\n饮食管理：\n低盐饮食（每日盐摄入量<6g）\n多吃新鲜蔬菜水果\n控制饱和脂肪摄入\n限制酒精摄入\n\n生活方式：\n规律运动（每周至少150分钟中等强度运动）\n控制体重\n戒烟\n保证充足睡眠\n学会压力管理\n\n药物治疗：\n按医嘱规律服药\n不可随意停药或减量\n定期监测血压\n\n定期检查：\n每月测量血压\n定期检查心、脑、肾功能'
+  },
+  {
+    keywords: ['阿司匹林', '副作用'],
+    question: '阿司匹林有哪些副作用？',
+    answer: '阿司匹林的主要副作用包括：\n\n消化系统：\n胃肠道刺激、胃痛\n消化性溃疡\n胃肠道出血\n恶心、呕吐\n\n血液系统：\n出血倾向增加\n血小板功能异常\n凝血时间延长\n\n过敏反应：\n皮疹、荨麻疹\n哮喘发作（阿司匹林哮喘）\n严重过敏反应\n\n其他：\n耳鸣、听力下降\n头晕、头痛\n肝功能异常（大剂量时）\n\n注意事项：\n有胃溃疡史者慎用\n孕妇、哺乳期妇女慎用\n与其他抗凝药物联用需谨慎'
+  },
+  {
+    keywords: ['糖尿病', '饮食', '建议'],
+    question: '糖尿病患者的饮食建议有哪些？',
+    answer: '糖尿病患者的饮食建议：\n\n主食选择：\n选择低升糖指数食物\n粗粮代替精米白面\n控制总量，少食多餐\n\n蛋白质：\n优质蛋白：鱼类、瘦肉、蛋类、豆制品\n每日蛋白质占总热量15-20%\n\n脂肪：\n选择不饱和脂肪酸\n限制饱和脂肪和反式脂肪\n每日脂肪占总热量<30%\n\n蔬菜水果：\n多吃绿叶蔬菜\n水果选择低糖品种，控制量\n避免果汁\n\n饮食原则：\n定时定量\n少食多餐\n控制总热量\n监测血糖变化\n\n禁忌食物：\n含糖饮料、糖果\n油炸食品\n高盐高脂食物'
+  },
+  {
+    keywords: ['感冒', '治疗', '药物'],
+    question: '感冒了应该怎么治疗？',
+    answer: '感冒的治疗建议：\n\n一般治疗：\n多休息，保证充足睡眠\n多喝温开水\n保持室内空气流通\n清淡饮食\n\n症状缓解：\n发热：物理降温，必要时服用退热药\n鼻塞：生理盐水冲洗鼻腔\n咳嗽：蜂蜜水、梨汤等\n咽痛：温盐水漱口\n\n药物治疗：\n对症治疗为主\n退热药：对乙酰氨基酚、布洛芬\n抗病毒药：奥司他韦（流感）\n避免滥用抗生素\n\n就医指征：\n发热超过3天\n出现呼吸困难\n剧烈头痛、颈部僵硬\n症状持续加重\n\n预防措施：\n勤洗手\n避免接触患者\n增强体质'
+  },
+  {
+    keywords: ['咳嗽', '原因', '治疗'],
+    question: '咳嗽的原因有哪些？',
+    answer: '咳嗽的常见原因：\n\n感染性原因：\n病毒感染：感冒、流感\n细菌感染：肺炎、支气管炎\n支原体、衣原体感染\n\n非感染性原因：\n过敏性咳嗽\n哮喘\n胃食管反流\n药物性咳嗽（如ACEI类降压药）\n慢性阻塞性肺疾病\n\n环境因素：\n空气污染\n吸烟\n粉尘刺激\n温度变化\n\n治疗原则：\n针对病因治疗\n干咳：可用镇咳药\n有痰咳嗽：用祛痰药\n避免刺激因素\n\n就医指征：\n咳嗽超过2周\n咳血\n伴有发热、胸痛\n呼吸困难'
+  },
+  {
+    keywords: ['失眠', '睡眠', '改善'],
+    question: '失眠怎么办？',
+    answer: '改善失眠的方法：\n\n睡眠卫生：\n规律作息，固定睡眠时间\n睡前2小时避免大量进食\n避免睡前饮用咖啡、茶、酒精\n创造舒适的睡眠环境\n\n放松技巧：\n深呼吸练习\n渐进性肌肉放松\n冥想、瑜伽\n听轻柔音乐\n\n生活方式调整：\n规律运动（但避免睡前剧烈运动）\n控制白天小睡时间\n减少电子设备使用\n管理压力和焦虑\n\n药物治疗：\n短期使用安眠药\n需在医生指导下使用\n避免长期依赖\n\n就医指征：\n失眠持续超过1个月\n严重影响日常生活\n伴有抑郁、焦虑症状'
+  },
+  {
+    keywords: ['腹痛', '肚子疼', '原因'],
+    question: '腹痛的常见原因有哪些？',
+    answer: '腹痛的常见原因：\n\n消化系统疾病：\n胃炎、胃溃疡\n肠炎、肠易激综合征\n胆囊炎、胆石症\n胰腺炎\n阑尾炎\n\n妇科疾病（女性）：\n痛经\n卵巢囊肿\n盆腔炎\n异位妊娠\n\n泌尿系统：\n肾结石\n尿路感染\n膀胱炎\n\n其他原因：\n肠梗阻\n腹主动脉瘤\n心肌梗死（上腹痛）\n\n紧急就医指征：\n剧烈腹痛\n伴有发热、呕吐\n腹部僵硬\n便血、黑便\n休克症状\n\n一般处理：\n轻微腹痛可观察\n避免盲目使用止痛药\n清淡饮食\n注意休息'
+  }
+]
 
+// 使用示例问题
+const useExample = (text) => {
+  question.value = text
+}
 
 // 本地问答匹配函数
 const findLocalAnswer = (userQuestion) => {
@@ -163,6 +233,15 @@ const findLocalAnswer = (userQuestion) => {
     qa.keywords.some(keyword => questionLower.includes(keyword.toLowerCase()))
   )
   if (keywordMatch) return keywordMatch.answer
+  
+  // 模糊匹配常见问题
+  if (questionLower.includes('头痛') || questionLower.includes('头疼')) {
+    return '头痛的常见原因包括：\n\n1. 紧张性头痛：最常见，由压力、疲劳引起\n2. 偏头痛：一侧搏动性疼痛，可能伴有恶心\n3. 颈椎病：颈部僵硬引起的头痛\n4. 高血压：血压升高时的头痛\n5. 感冒发热：病毒感染引起\n\n缓解方法：\n充分休息\n按摩太阳穴\n热敷或冷敷\n如持续严重，请就医检查'
+  }
+  
+  if (questionLower.includes('发烧') || questionLower.includes('发热')) {
+    return '发热的处理建议：\n\n物理降温：\n温水擦浴\n多喝水\n适当减少衣物\n保持室内通风\n\n药物降温：\n体温>38.5°C时可服用退热药\n成人：对乙酰氨基酚、布洛芬\n儿童：避免使用阿司匹林\n\n就医指征：\n体温>39°C\n发热超过3天\n伴有剧烈头痛、呼吸困难\n婴幼儿发热\n\n注意事项：\n监测体温变化\n观察其他症状\n充分休息'
+  }
   
   return null
 }

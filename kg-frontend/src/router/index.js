@@ -16,6 +16,12 @@ const routes = [
     meta: { title: '用户登录', requiresGuest: true }
   },
   {
+    path: '/demo',
+    name: 'Demo',
+    component: Home,
+    meta: { title: '演示模式 - 首页', requiresAuth: false, enableDemo: true }
+  },
+  {
     path: '/',
     name: 'Home',
     component: Home,
@@ -71,6 +77,10 @@ router.beforeEach(async (to, from, next) => {
   
   const authStore = useAuthStore()
   
+  // 如果路由要求启用演示模式
+  if (to.meta.enableDemo) {
+    authStore.enableDemoMode()
+  }
   
   // 检查是否需要认证
   if (to.meta.requiresAuth) {
@@ -80,6 +90,11 @@ router.beforeEach(async (to, from, next) => {
       return
     }
     
+    // 如果是演示模式，直接通过
+    if (authStore.isDemoMode) {
+      next()
+      return
+    }
     
     // 已登录但需要验证token有效性
     try {

@@ -74,11 +74,11 @@
               重置
             </button>
             
-            <button 
+            <button
               @click="highlightTopNodes"
               class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
             >
-              高亮重点节点
+              演示模式
             </button>
           </div>
         </div>
@@ -564,10 +564,10 @@ const quickQuestions = ref([
   '药物与疾病之间有什么关系？',
   '基因如何影响药物疗效？',
   '靶点在药物作用中的角色？',
-  '如何使用知识图谱进行药物发现？',
-  '通路分析在疾病研究中的应用？',
-  '药物相互作用如何预测？',
-  '疾病的分子机制是什么？'
+  '如何使用图谱查找信息？',
+  '什么是药物相互作用？',
+  '疾病的分子机制是什么？',
+  '通路在疾病中的作用？'
 ])
 
 // 生成大规模医疗知识图谱数据
@@ -1249,7 +1249,6 @@ const sendMessage = () => {
     })
   }, 1000)
 }
-
 
 const askQuickQuestion = (question) => {
   chatInput.value = question

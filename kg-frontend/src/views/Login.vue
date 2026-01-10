@@ -9,10 +9,9 @@
         <h2 class="mt-6 text-3xl font-bold text-gray-900">
           登录系统
         </h2>
-        <p class="text-center text-sm text-gray-600 mb-6">
-          请登录以访问智慧医疗知识服务平台
+        <p class="mt-2 text-sm text-gray-600">
+          智慧医疗知识服务平台
         </p>
-
       </div>
 
       <!-- 登录表单 -->
@@ -112,6 +111,21 @@
           </button>
         </form>
 
+        <!-- 演示模式按钮 -->
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <button
+            @click="enterDemoMode"
+            class="w-full flex justify-center py-3 px-4 border border-gray-300 rounded-lg shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all duration-200"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+            演示模式（无需登录）
+          </button>
+          <p class="mt-2 text-xs text-gray-500 text-center">
+            点击进入演示模式，查看完整系统界面
+          </p>
+        </div>
       </div>
     </div>
 
@@ -289,23 +303,27 @@ const handleRegister = async () => {
   }
 }
 
-
-// 清理演示模式数据
-const cleanupDemoData = () => {
-  // 清除所有可能的演示模式相关数据
-  if (localStorage.getItem('demo_mode') === 'true') {
-    localStorage.removeItem('demo_mode')
-    localStorage.removeItem('auth_token')
-    localStorage.removeItem('auth_user')
-    console.log('已清理演示模式数据')
-  }
+// 演示模式处理
+const enterDemoMode = () => {
+  console.log('🎯 点击演示模式按钮')
+  
+  // 设置演示用户信息到localStorage
+  localStorage.setItem('demo_mode', 'true')
+  localStorage.setItem('auth_token', 'demo_token')
+  localStorage.setItem('auth_user', JSON.stringify({
+    username: '演示用户',
+    role: 'demo'
+  }))
+  
+  console.log('✅ 演示模式数据已设置')
+  
+  // 直接跳转到首页
+  console.log('🚀 准备跳转到首页')
+  router.push('/')
 }
 
 // 检查是否已登录
 onMounted(() => {
-  // 先清理演示模式数据
-  cleanupDemoData()
-  
   if (authStore.isAuthenticated) {
     router.push('/')
   }
