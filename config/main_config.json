@@ -1,0 +1,13 @@
+{
+  "app_name": "医疗知识图谱问答系统",
+  "version": "1.0.0",
+  "debug": false,
+  "host": "localhost",
+  "port": 5000,
+  "timezone": "Asia/Shanghai",
+  "log_level": "INFO",
+  "max_query_length": 500,
+  "session_timeout": 3600,
+  "created_at": "2026-01-25T21:26:33.965579",
+  "updated_at": "2026-01-25T21:26:33.965579"
+}

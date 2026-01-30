@@ -5,9 +5,37 @@
 import os
 import ahocorasick
 
+
+def _normalize_term(s: str) -> str:
+    if s is None:
+        return ''
+    return str(s).strip().replace(' ', '').replace('\u3000', '')
+
+
+def _normalize_drug_name(name: str) -> str:
+    s = _normalize_term(name)
+    suffixes = (
+        '肠溶胶囊', '肠溶片',
+        '缓释片', '控释片', '咀嚼片', '含片',
+        '注射液', '注射剂', '粉针剂', '粉针',
+        '口服液', '混悬液', '喷雾剂', '气雾剂',
+        '滴眼液', '滴鼻液', '滴剂',
+        '乳膏', '软膏', '眼膏', '凝胶',
+        '颗粒', '胶囊', '糖浆', '片', '丸', '散', '膏', '贴', '栓', '粉'
+    )
+    changed = True
+    while changed and s:
+        changed = False
+        for suf in suffixes:
+            if s.endswith(suf) and len(s) > len(suf):
+                s = s[:-len(suf)]
+                changed = True
+                break
+    return s
+
 class QuestionClassifier:
     def __init__(self):
-        cur_dir = '/'.join(os.path.abspath(__file__).split('/')[:-1])
+        cur_dir = os.path.dirname(os.path.abspath(__file__))
         #　特征词路径
         self.disease_path = os.path.join(cur_dir, 'dict/disease.txt')
         self.department_path = os.path.join(cur_dir, 'dict/department.txt')
@@ -18,14 +46,16 @@ class QuestionClassifier:
         self.symptom_path = os.path.join(cur_dir, 'dict/symptom.txt')
         self.deny_path = os.path.join(cur_dir, 'dict/deny.txt')
         # 加载特征词
-        self.disease_wds = [i.strip() for i in open(self.disease_path, encoding='utf-8') if i.strip()]
-        self.department_wds = [i.strip() for i in open(self.department_path, encoding='utf-8') if i.strip()]
-        self.check_wds= [i.strip() for i in open(self.check_path, encoding='utf-8') if i.strip()]
-        self.drug_wds= [i.strip() for i in open(self.drug_path, encoding='utf-8') if i.strip()]
-        self.food_wds= [i.strip() for i in open(self.food_path, encoding='utf-8') if i.strip()]
-        self.producer_wds= [i.strip() for i in open(self.producer_path, encoding='utf-8') if i.strip()]
-        self.symptom_wds = [i.strip() for i in open(self.symptom_path, encoding='utf-8') if i.strip()]
-        self.region_words = set(self.department_wds + self.disease_wds + self.check_wds + self.drug_wds + self.food_wds + self.producer_wds + self.symptom_wds)
+        self.disease_wds = [_normalize_term(i) for i in open(self.disease_path, encoding='utf-8') if _normalize_term(i)]
+        self.department_wds = [_normalize_term(i) for i in open(self.department_path, encoding='utf-8') if _normalize_term(i)]
+        self.check_wds= [_normalize_term(i) for i in open(self.check_path, encoding='utf-8') if _normalize_term(i)]
+        self.drug_wds= [_normalize_term(i) for i in open(self.drug_path, encoding='utf-8') if _normalize_term(i)]
+        self.food_wds= [_normalize_term(i) for i in open(self.food_path, encoding='utf-8') if _normalize_term(i)]
+        self.producer_wds= [_normalize_term(i) for i in open(self.producer_path, encoding='utf-8') if _normalize_term(i)]
+        self.symptom_wds = [_normalize_term(i) for i in open(self.symptom_path, encoding='utf-8') if _normalize_term(i)]
+
+        self.drug_norm_wds = list(set([_normalize_drug_name(i) for i in self.drug_wds if _normalize_drug_name(i)]))
+        self.region_words = set(self.department_wds + self.disease_wds + self.check_wds + self.drug_wds + self.drug_norm_wds + self.food_wds + self.producer_wds + self.symptom_wds)
         self.deny_words = [i.strip() for i in open(self.deny_path, encoding='utf-8') if i.strip()]
         # 构造领域actree
         self.region_tree = self.build_actree(list(self.region_words))
@@ -44,11 +74,17 @@ class QuestionClassifier:
                              '怎样才可不', '怎么才可不', '咋样才可不', '咋才可不', '如何可不']
         self.lasttime_qwds = ['周期', '多久', '多长时间', '多少时间', '几天', '几年', '多少天', '多少小时', '几个小时', '多少年']
         self.cureway_qwds = ['怎么治疗', '如何医治', '怎么医治', '怎么治', '怎么医', '如何治', '医治方式', '疗法', '咋治', '怎么办', '咋办', '咋治']
-        self.cureprob_qwds = ['多大概率能治好', '多大几率能治好', '治好希望大么', '几率', '几成', '比例', '可能性', '能治', '可治', '可以治', '可以医']
+        self.cureprob_qwds = [
+            '多大概率能治好', '多大几率能治好', '治好希望大么',
+            '治愈概率', '治愈率', '治愈几率', '治愈可能性', '治好概率', '治好几率',
+            '好治吗', '治得好吗', '能治好吗',
+            '几率', '几成', '比例', '概率', '可能性',
+            '能治', '可治', '可以治', '可以医'
+        ]
         self.easyget_qwds = ['易感人群', '容易感染', '易发人群', '什么人', '哪些人', '感染', '染上', '得上']
         self.check_qwds = ['检查', '检查项目', '查出', '检查', '测出', '试出']
         self.belong_qwds = ['属于什么科', '属于', '什么科', '科室']
-        self.cure_qwds = ['治疗什么', '治啥', '治疗啥', '医治啥', '治愈啥', '主治啥', '主治什么', '有什么用', '有何用', '用处', '用途',
+        self.cure_qwds = ['治疗什么', '治啥', '治疗啥', '医治啥', '治愈啥', '主治啥', '主治什么', '有什么用', '有何用', '用处', '用途', '作用', '功效', '主治', '适应症',
                           '有什么好处', '有什么益处', '有何益处', '用来', '用来做啥', '用来作甚', '需要', '要']
 
         print('model init finished ......')
@@ -151,6 +187,11 @@ class QuestionClassifier:
             question_type = 'disease_easyget'
             question_types.append(question_type)
 
+        # 疾病所属科室/挂号建议
+        if self.check_words(self.belong_qwds, question) and 'disease' in types:
+            question_type = 'disease_department'
+            question_types.append(question_type)
+
         # 若没有查到相关的外部查询信息，那么则将该疾病的描述信息返回
         if question_types == [] and 'disease' in types:
             question_types = ['disease_desc']
@@ -175,7 +216,7 @@ class QuestionClassifier:
                 wd_dict[wd].append('department')
             if wd in self.check_wds:
                 wd_dict[wd].append('check')
-            if wd in self.drug_wds:
+            if wd in self.drug_wds or wd in self.drug_norm_wds:
                 wd_dict[wd].append('drug')
             if wd in self.food_wds:
                 wd_dict[wd].append('food')

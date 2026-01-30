@@ -4,16 +4,23 @@
 
 import os
 import json
+import argparse
 from py2neo import Graph,Node
 
 class MedicalGraph:
     def __init__(self):
-        self.data_path = r"D:\QASystemOnMedicalKG-master\data\medical.json"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.data_path = os.path.join(base_dir, 'data', 'medical.json')
         print(f"数据文件路径: {self.data_path}")
-        self.g = Graph(
-            "bolt://localhost:7687",  # 或 "neo4j://localhost:7687"（Neo4j 4.0+）
-             auth=("neo4j", "cyj20041122")
-        )
+
+        config_path = os.path.join(base_dir, 'config', 'database_config.json')
+        with open(config_path, 'r', encoding='utf-8') as f:
+            db_config = json.load(f)
+        neo4j_cfg = (db_config or {}).get('neo4j', {})
+        uri = neo4j_cfg.get('uri') or 'bolt://localhost:7687'
+        username = neo4j_cfg.get('username') or 'neo4j'
+        password = neo4j_cfg.get('password') or 'password'
+        self.g = Graph(uri, auth=(username, password))
 
     '''读取文件'''
     def read_nodes(self):
@@ -156,8 +163,11 @@ class MedicalGraph:
     def create_node(self, label, nodes):
         count = 0
         for node_name in nodes:
-            node = Node(label, name=node_name)
-            self.g.create(node)
+            node_name = (node_name or '').strip()
+            if not node_name:
+                continue
+            query = "MERGE (n:{0} {{name:$name}})".format(label)
+            self.g.run(query, name=node_name)
             count += 1
             print(count, len(nodes))
         return
@@ -221,14 +231,61 @@ class MedicalGraph:
             edge = edge.split('###')
             p = edge[0]
             q = edge[1]
-            query = "match(p:%s),(q:%s) where p.name='%s'and q.name='%s' create (p)-[rel:%s{name:'%s'}]->(q)" % (
-                start_node, end_node, p, q, rel_type, rel_name)
+            query = (
+                "MATCH (p:{start}),(q:{end}) "
+                "WHERE p.name=$p AND q.name=$q "
+                "MERGE (p)-[rel:{rtype}]->(q) "
+                "SET rel.name=$rname"
+            ).format(start=start_node, end=end_node, rtype=rel_type)
             try:
-                self.g.run(query)
+                self.g.run(query, p=p, q=q, rname=rel_name)
                 count += 1
                 print(rel_type, count, all)
             except Exception as e:
                 print(e)
+        return
+
+    def import_food_only(self):
+        (
+            Drugs, Foods, Checks, Departments, Producers, Symptoms, Diseases, disease_infos,
+            rels_check, rels_recommandeat, rels_noteat, rels_doeat, rels_department, rels_commonddrug,
+            rels_drug_producer, rels_recommanddrug, rels_symptom, rels_acompany, rels_category
+        ) = self.read_nodes()
+
+        self.create_node('Food', Foods)
+        self.create_relationship('Disease', 'Food', rels_recommandeat, 'RECOMMAND_EAT', '推荐食谱')
+        self.create_relationship('Disease', 'Food', rels_noteat, 'NO_EAT', '忌吃')
+        self.create_relationship('Disease', 'Food', rels_doeat, 'DO_EAT', '宜吃')
+        return
+
+    def update_easyget_only(self):
+        (
+            Drugs, Foods, Checks, Departments, Producers, Symptoms, Diseases, disease_infos,
+            rels_check, rels_recommandeat, rels_noteat, rels_doeat, rels_department, rels_commonddrug,
+            rels_drug_producer, rels_recommanddrug, rels_symptom, rels_acompany, rels_category
+        ) = self.read_nodes()
+
+        query = (
+            "MATCH (d:Disease {name:$name}) "
+            "WHERE d.easy_get IS NULL OR d.easy_get = '' "
+            "SET d.easy_get = $easy_get"
+        )
+        count = 0
+        for d in disease_infos:
+            name = (d.get('name') or '').strip()
+            if not name:
+                continue
+            easy_get = d.get('easy_get')
+            if easy_get is None or easy_get == '' or easy_get == []:
+                continue
+            try:
+                self.g.run(query, name=name, easy_get=easy_get)
+                count += 1
+                if count % 500 == 0:
+                    print('update_easyget', count)
+            except Exception as e:
+                print(e)
+        print('update_easyget_finished', count)
         return
 
     '''导出数据'''
@@ -263,9 +320,21 @@ class MedicalGraph:
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--only-food', action='store_true')
+    parser.add_argument('--update-easyget', action='store_true')
+    args = parser.parse_args()
+
     handler = MedicalGraph()
-    print("step1:导入图谱节点中")
-    handler.create_graphnodes()
-    print("step2:导入图谱边中")      
-    handler.create_graphrels()
+    if args.only_food:
+        print('step:导入 Food 节点与饮食关系')
+        handler.import_food_only()
+    elif args.update_easyget:
+        print('step:补全 Disease.easy_get')
+        handler.update_easyget_only()
+    else:
+        print("step1:导入图谱节点中")
+        handler.create_graphnodes()
+        print("step2:导入图谱边中")
+        handler.create_graphrels()
     

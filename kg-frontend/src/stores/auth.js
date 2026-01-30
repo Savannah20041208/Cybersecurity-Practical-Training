@@ -11,6 +11,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isDemoMode = ref(localStorage.getItem('demo_mode') === 'true')
   const loading = ref(false)
 
+  if (token.value) {
+    isDemoMode.value = false
+    localStorage.removeItem('demo_mode')
+  }
+
   // 计算属性
   const isAuthenticated = computed(() => (!!token.value && !!user.value) || isDemoMode.value)
 
@@ -27,6 +32,8 @@ export const useAuthStore = defineStore('auth', () => {
     // 如果有token，添加到请求头
     if (token.value) {
       config.headers.Authorization = `Bearer ${token.value}`
+    } else if (isDemoMode.value) {
+      config.headers['X-Demo-Mode'] = 'true'
     }
 
     try {
@@ -57,6 +64,10 @@ export const useAuthStore = defineStore('auth', () => {
       // 保存token和用户信息
       token.value = data.token
       user.value = data.user
+
+      // 真实登录后，退出演示模式
+      isDemoMode.value = false
+      localStorage.removeItem('demo_mode')
       
       // 持久化存储
       localStorage.setItem('auth_token', data.token)
@@ -121,8 +132,11 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 启用演示模式
   const enableDemoMode = () => {
+    token.value = null
     isDemoMode.value = true
     localStorage.setItem('demo_mode', 'true')
+    localStorage.removeItem('auth_token')
+    localStorage.removeItem('auth_user')
     // 设置演示用户信息
     user.value = {
       username: 'demo_user',

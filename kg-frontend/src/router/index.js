@@ -7,6 +7,7 @@ import DrugDetail from '../views/DrugDetail.vue'
 import DiseaseDetail from '../views/DiseaseDetail.vue'
 import Analysis from '../views/Analysis.vue'
 import Login from '../views/Login.vue'
+import DrugIdentification from '../views/DrugIdentification.vue'
 
 const routes = [
   {
@@ -56,6 +57,12 @@ const routes = [
     name: 'Analysis',
     component: Analysis,
     meta: { title: '分析页', requiresAuth: true }
+  },
+  {
+    path: '/drug-identification',
+    name: 'DrugIdentification',
+    component: DrugIdentification,
+    meta: { title: '药品拍照识别', requiresAuth: true }
   },
   {
     path: '/config-management',

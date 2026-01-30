@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>药品拍照识别系统</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        .upload-area {
+            border: 2px dashed #cbd5e0;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover, .upload-area.dragover {
+            border-color: #4299e1;
+            background-color: #ebf8ff;
+        }
+        .preview-image {
+            max-height: 300px;
+            object-fit: contain;
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .result-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .info-item {
+            border-left: 3px solid #4299e1;
+        }
+        .confidence-bar {
+            transition: width 0.5s ease;
+        }
+        /* 多图上传样式 */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-top: 16px;
+        }
+        .image-item {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 8px;
+            overflow: hidden;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+        }
+        .image-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .image-item img:hover {
+            transform: scale(1.05);
+        }
+        .image-item .delete-btn {
+            position: absolute;
+            bottom: 4px;
+            right: 4px;
+            width: 24px;
+            height: 24px;
+            background: rgba(239, 68, 68, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+            padding: 0;
+        }
+        .image-item .delete-btn:hover {
+            background: #dc2626;
+            transform: scale(1.1);
+        }
+        .image-item .delete-btn svg {
+            width: 14px;
+            height: 14px;
+            color: white;
+        }
+        .image-item .image-index {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 20px;
+            height: 20px;
+            background: rgba(59, 130, 246, 0.9);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .upload-count {
+            color: #4299e1;
+            font-weight: 600;
+        }
+        .upload-hint {
+            color: #718096;
+            font-size: 12px;
+        }
+        /* 图片放大预览 */
+        .image-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.85);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .image-modal.show {
+            display: flex;
+        }
+        .image-modal img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        .image-modal .close-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: none;
+        }
+        .image-modal .close-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- 标题 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">💊 药品拍照识别系统</h1>
+            <p class="text-gray-600">上传药盒图片，自动识别药品信息</p>
+        </div>
+
+        <!-- 上传区域 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+            <!-- 上传提示文案 -->
+            <div class="text-center mb-4">
+                <p id="uploadGuide" class="text-gray-600">请上传药盒所有带文字的面（最多 6 张），上传越多识别越准</p>
+                <p id="uploadProgress" class="upload-count mt-1 hidden">已上传 <span id="uploadedCount">0</span>/6 张</p>
+            </div>
+
+            <!-- 上传区域 -->
+            <div id="uploadArea" class="upload-area rounded-lg p-8 text-center cursor-pointer">
+                <div id="uploadPrompt">
+                    <svg class="mx-auto h-16 w-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                    </svg>
+                    <p class="text-gray-600 mb-2">点击上传或拖拽图片到此处</p>
+                    <p class="text-gray-400 text-sm">支持 JPG、PNG、GIF 格式，最大 16MB</p>
+                </div>
+            </div>
+            <input type="file" id="fileInput" accept="image/*" multiple class="hidden">
+
+            <!-- 多图预览网格 -->
+            <div id="imageGrid" class="image-grid hidden"></div>
+            
+            <!-- 选项 -->
+            <div class="flex items-center justify-between mt-4">
+                <div class="flex items-center space-x-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="enhanceCheck" checked class="form-checkbox h-4 w-4 text-blue-600">
+                        <span class="ml-2 text-gray-700">图像增强</span>
+                    </label>
+                    <button id="cameraBtn" class="flex items-center px-3 py-1 bg-gray-100 rounded hover:bg-gray-200">
+                        <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        拍照
+                    </button>
+                    <!-- 动态上传按钮 -->
+                    <button id="addMoreBtn" class="hidden flex items-center px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">
+                        <svg class="h-5 w-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                        </svg>
+                        <span id="addMoreText">继续添加照片</span>
+                    </button>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="identifyHint" class="upload-hint hidden">上传更多照片可提升识别准确率</span>
+                    <button id="identifyBtn" disabled class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition">
+                        开始识别
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 图片放大预览模态框 -->
+        <div id="imageModal" class="image-modal" onclick="closeImageModal()">
+            <button class="close-btn" onclick="closeImageModal()">
+                <svg class="h-6 w-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+            <img id="modalImage" src="" alt="放大预览">
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loadingSection" class="hidden bg-white rounded-lg shadow-lg p-8 mb-6 text-center">
+            <div class="loading-spinner mx-auto mb-4"></div>
+            <p class="text-gray-600">正在识别中，请稍候...</p>
+        </div>
+
+        <!-- 结果区域 -->
+        <div id="resultSection" class="hidden">
+            <!-- 识别状态 -->
+            <div id="resultHeader" class="result-card rounded-lg shadow-lg p-6 mb-6 text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 id="resultTitle" class="text-xl font-bold mb-1">识别成功</h2>
+                        <p id="resultSubtitle" class="opacity-80">匹配类型：批准文号精确匹配</p>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-3xl font-bold" id="confidenceValue">95%</div>
+                        <div class="text-sm opacity-80">置信度</div>
+                    </div>
+                </div>
+                <div class="mt-4 bg-white bg-opacity-20 rounded-full h-2">
+                    <div id="confidenceBar" class="confidence-bar bg-white rounded-full h-2" style="width: 95%"></div>
+                </div>
+            </div>
+
+            <!-- 药品信息卡片 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="w-1 h-6 bg-blue-600 rounded mr-3"></span>
+                    药品信息
+                </h3>
+                <div id="drugInfoGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+
+            <!-- OCR 原文 -->
+            <div class="bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center cursor-pointer" onclick="toggleOCR()">
+                    <span class="w-1 h-6 bg-green-600 rounded mr-3"></span>
+                    OCR 识别原文
+                    <svg id="ocrToggle" class="h-5 w-5 ml-2 transform transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </h3>
+                <div id="ocrContent" class="hidden">
+                    <pre id="ocrText" class="bg-gray-50 p-4 rounded text-sm text-gray-700 whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+
+            <!-- 候选列表 -->
+            <div id="candidatesSection" class="hidden bg-white rounded-lg shadow-lg p-6 mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                    <span class="w-1 h-6 bg-yellow-500 rounded mr-3"></span>
+                    候选药品
+                </h3>
+                <div id="candidatesList" class="space-y-3">
+                    <!-- 动态填充 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 相机模态框 -->
+        <div id="cameraModal" class="hidden fixed inset-0 bg-black bg-opacity-75 z-50 flex items-center justify-center">
+            <div class="bg-white rounded-lg p-4 max-w-lg w-full mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">拍照</h3>
+                    <button onclick="closeCamera()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                <video id="cameraVideo" class="w-full rounded-lg bg-black" autoplay playsinline></video>
+                <canvas id="cameraCanvas" class="hidden"></canvas>
+                <div class="mt-4 flex justify-center">
+                    <button onclick="capturePhoto()" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        📷 拍照
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 元素引用
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const uploadPrompt = document.getElementById('uploadPrompt');
+        const imageGrid = document.getElementById('imageGrid');
+        const identifyBtn = document.getElementById('identifyBtn');
+        const loadingSection = document.getElementById('loadingSection');
+        const resultSection = document.getElementById('resultSection');
+        const enhanceCheck = document.getElementById('enhanceCheck');
+        const cameraBtn = document.getElementById('cameraBtn');
+        const cameraModal = document.getElementById('cameraModal');
+        const cameraVideo = document.getElementById('cameraVideo');
+        const cameraCanvas = document.getElementById('cameraCanvas');
+        const addMoreBtn = document.getElementById('addMoreBtn');
+        const addMoreText = document.getElementById('addMoreText');
+        const uploadGuide = document.getElementById('uploadGuide');
+        const uploadProgress = document.getElementById('uploadProgress');
+        const uploadedCount = document.getElementById('uploadedCount');
+        const identifyHint = document.getElementById('identifyHint');
+        const imageModal = document.getElementById('imageModal');
+        const modalImage = document.getElementById('modalImage');
+
+        const API_BASE_URL = (window.location.port === '5001' || window.location.port === '')
+            ? ''
+            : 'http://127.0.0.1:5001';
+
+        // 多图上传相关
+        const MAX_IMAGES = 6;
+        let selectedFiles = []; // 存储多个文件
+        let cameraStream = null;
+
+        // 上传区域点击
+        uploadArea.addEventListener('click', () => {
+            if (selectedFiles.length < MAX_IMAGES) {
+                fileInput.click();
+            }
+        });
+
+        // 添加更多按钮点击
+        addMoreBtn.addEventListener('click', () => fileInput.click());
+
+        // 文件选择（支持多选）
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            files.forEach(file => handleFile(file));
+            fileInput.value = ''; // 清空以便重复选择同一文件
+        });
+
+        // 拖拽
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            files.forEach(file => handleFile(file));
+        });
+
+        // 处理文件（多图）
+        function handleFile(file) {
+            if (!file.type.startsWith('image/')) {
+                alert('请选择图片文件');
+                return;
+            }
+            if (selectedFiles.length >= MAX_IMAGES) {
+                alert(`最多只能上传 ${MAX_IMAGES} 张图片`);
+                return;
+            }
+            
+            // 添加到文件列表
+            selectedFiles.push(file);
+            
+            // 读取并显示预览
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                addImageToGrid(e.target.result, selectedFiles.length - 1);
+                updateUI();
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 添加图片到网格
+        function addImageToGrid(src, index) {
+            const item = document.createElement('div');
+            item.className = 'image-item';
+            item.dataset.index = index;
+            item.innerHTML = `
+                <span class="image-index">${index + 1}</span>
+                <img src="${src}" alt="药盒照片 ${index + 1}" onclick="openImageModal(event, '${src}')">
+                <button class="delete-btn" onclick="deleteImage(event, ${index})" title="删除此图片">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            imageGrid.appendChild(item);
+        }
+
+        // 删除单张图片
+        function deleteImage(e, index) {
+            if (e) e.stopPropagation(); // 阻止冒泡
+            selectedFiles.splice(index, 1);
+            renderImageGrid();
+            updateUI();
+        }
+
+        // 重新渲染图片网格
+        function renderImageGrid() {
+            imageGrid.innerHTML = '';
+            selectedFiles.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    addImageToGrid(e.target.result, index);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // 更新UI状态
+        function updateUI() {
+            const count = selectedFiles.length;
+            
+            // 更新计数显示
+            uploadedCount.textContent = count;
+            
+            if (count > 0) {
+                // 隐藏上传提示，显示图片网格
+                uploadPrompt.classList.add('hidden');
+                imageGrid.classList.remove('hidden');
+                uploadProgress.classList.remove('hidden');
+                
+                // 启用识别按钮
+                identifyBtn.disabled = false;
+                
+                // 显示提示（如果图片少于3张）
+                if (count < 3) {
+                    identifyHint.classList.remove('hidden');
+                } else {
+                    identifyHint.classList.add('hidden');
+                }
+                
+                // 更新添加更多按钮
+                if (count < MAX_IMAGES) {
+                    addMoreBtn.classList.remove('hidden');
+                    addMoreText.textContent = '继续添加照片';
+                    uploadArea.style.cursor = 'pointer';
+                } else {
+                    addMoreBtn.classList.add('hidden');
+                    uploadArea.style.cursor = 'default';
+                }
+            } else {
+                // 恢复初始状态
+                uploadPrompt.classList.remove('hidden');
+                imageGrid.classList.add('hidden');
+                uploadProgress.classList.add('hidden');
+                identifyBtn.disabled = true;
+                identifyHint.classList.add('hidden');
+                addMoreBtn.classList.add('hidden');
+                uploadArea.style.cursor = 'pointer';
+            }
+        }
+
+        // 打开图片放大预览
+        function openImageModal(e, src) {
+            if (e) e.stopPropagation();
+            modalImage.src = src;
+            imageModal.classList.add('show');
+        }
+
+        // 关闭图片放大预览
+        function closeImageModal() {
+            imageModal.classList.remove('show');
+        }
+
+        // 开始识别（多图）
+        identifyBtn.addEventListener('click', async () => {
+            if (selectedFiles.length === 0) return;
+
+            loadingSection.classList.remove('hidden');
+            resultSection.classList.add('hidden');
+            identifyBtn.disabled = true;
+
+            const formData = new FormData();
+            // 添加所有图片
+            selectedFiles.forEach((file, index) => {
+                formData.append('images', file);
+            });
+            formData.append('enhance', enhanceCheck.checked);
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/identify`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                displayResult(data);
+            } catch (error) {
+                alert('识别失败: ' + error.message);
+            } finally {
+                loadingSection.classList.add('hidden');
+                identifyBtn.disabled = false;
+            }
+        });
+
+        // 显示结果
+        function displayResult(data) {
+            resultSection.classList.remove('hidden');
+
+            // 标题和置信度
+            const resultTitle = document.getElementById('resultTitle');
+            const resultSubtitle = document.getElementById('resultSubtitle');
+            const confidenceValue = document.getElementById('confidenceValue');
+            const confidenceBar = document.getElementById('confidenceBar');
+            const resultHeader = document.getElementById('resultHeader');
+
+            if (data.success) {
+                resultTitle.textContent = '✅ 识别成功';
+                resultHeader.style.background = 'linear-gradient(135deg, #48bb78 0%, #38a169 100%)';
+            } else {
+                resultTitle.textContent = '⚠️ 未找到精确匹配';
+                resultHeader.style.background = 'linear-gradient(135deg, #ed8936 0%, #dd6b20 100%)';
+            }
+
+            const matchTypeMap = {
+                'approval_no': '批准文号精确匹配',
+                'name_enterprise': '名称+企业匹配',
+                'fuzzy': '模糊匹配',
+                'none': '未匹配',
+                'ocr_only': '仅识别文字（未补全）'
+            };
+            const matchTypeText = matchTypeMap[data.match_type] || data.match_type;
+            const msg = data.message ? ` · ${data.message}` : '';
+            const ocrMeta = data.ocr_engine ? ` · OCR引擎:${data.ocr_engine}` : '';
+            const ocrErr = data.ocr_error ? ` · ${data.ocr_error}` : '';
+            resultSubtitle.textContent = `匹配类型：${matchTypeText}${msg}${ocrMeta}${ocrErr}`;
+
+            const confidence = Math.round((data.confidence || 0) * 100);
+            confidenceValue.textContent = confidence + '%';
+            confidenceBar.style.width = confidence + '%';
+
+            // 药品信息
+            const drugInfo = data.drug_info || data.matched_drug || data.parsed_info || {};
+            const infoGrid = document.getElementById('drugInfoGrid');
+            infoGrid.innerHTML = '';
+
+            const fields = [
+                { key: 'generic_name', label: '通用名', icon: '💊' },
+                { key: 'brand_name', label: '商品名', icon: '🏷️' },
+                { key: 'approval_no', label: '批准文号', icon: '📋' },
+                { key: 'dosage_form', label: '剂型', icon: '💉' },
+                { key: 'spec', label: '规格', icon: '📏' },
+                { key: 'enterprise', label: '生产企业', icon: '🏭' },
+                { key: 'otc_type', label: 'OTC分类', icon: '🔖' },
+                { key: 'indications', label: '适应症', icon: '🩺' },
+                { key: 'usage', label: '用法用量', icon: '📖' },
+                { key: 'contraindications', label: '禁忌', icon: '⚠️' },
+                { key: 'adverse_reactions', label: '不良反应', icon: '⚡' },
+                { key: 'storage', label: '贮藏', icon: '🗄️' },
+            ];
+
+            fields.forEach(field => {
+                const value = drugInfo[field.key];
+                if (value && value !== 'None' && value !== 'null') {
+                    const div = document.createElement('div');
+                    div.className = 'info-item pl-3 py-2';
+                    div.innerHTML = `
+                        <div class="text-gray-500 text-sm">${field.icon} ${field.label}</div>
+                        <div class="text-gray-800 font-medium">${value}</div>
+                    `;
+                    infoGrid.appendChild(div);
+                }
+            });
+
+            // OCR 原文
+            document.getElementById('ocrText').textContent = data.ocr_text || '无';
+
+            // 候选列表
+            const candidatesSection = document.getElementById('candidatesSection');
+            const candidatesList = document.getElementById('candidatesList');
+            if (data.candidates && data.candidates.length > 0) {
+                candidatesSection.classList.remove('hidden');
+                candidatesList.innerHTML = '';
+                data.candidates.slice(0, 5).forEach((c, i) => {
+                    const div = document.createElement('div');
+                    div.className = 'p-3 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer';
+                    div.innerHTML = `
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="font-medium">${c.generic_name || c.drug_name || '未知'}</span>
+                                <span class="text-gray-500 text-sm ml-2">${c.dosage_form || ''}</span>
+                            </div>
+                            <span class="text-blue-600 font-medium">${c.score || 0}分</span>
+                        </div>
+                        <div class="text-gray-500 text-sm mt-1">${c.enterprise || ''}</div>
+                    `;
+                    candidatesList.appendChild(div);
+                });
+            } else {
+                candidatesSection.classList.add('hidden');
+            }
+        }
+
+        // 切换 OCR 显示
+        function toggleOCR() {
+            const content = document.getElementById('ocrContent');
+            const toggle = document.getElementById('ocrToggle');
+            content.classList.toggle('hidden');
+            toggle.classList.toggle('rotate-180');
+        }
+
+        // 相机功能
+        cameraBtn.addEventListener('click', openCamera);
+
+        async function openCamera() {
+            try {
+                cameraStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                cameraVideo.srcObject = cameraStream;
+                cameraModal.classList.remove('hidden');
+            } catch (error) {
+                alert('无法访问摄像头: ' + error.message);
+            }
+        }
+
+        function closeCamera() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            cameraModal.classList.add('hidden');
+        }
+
+        function capturePhoto() {
+            if (selectedFiles.length >= MAX_IMAGES) {
+                alert(`最多只能上传 ${MAX_IMAGES} 张图片`);
+                closeCamera();
+                return;
+            }
+            
+            const canvas = cameraCanvas;
+            canvas.width = cameraVideo.videoWidth;
+            canvas.height = cameraVideo.videoHeight;
+            canvas.getContext('2d').drawImage(cameraVideo, 0, 0);
+            
+            canvas.toBlob((blob) => {
+                const timestamp = new Date().getTime();
+                const file = new File([blob], `camera_photo_${timestamp}.jpg`, { type: 'image/jpeg' });
+                handleFile(file);
+                
+                // 如果还可以继续拍照，不关闭相机
+                if (selectedFiles.length < MAX_IMAGES) {
+                    // 可以继续拍照
+                } else {
+                    closeCamera();
+                }
+            }, 'image/jpeg', 0.9);
+        }
+
+        // ESC键关闭模态框
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeImageModal();
+                closeCamera();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+{
+  "neo4j": {
+    "uri": "bolt://localhost:7687",
+    "username": "neo4j",
+    "password": "password",
+    "database": "medical_kg",
+    "max_connection_pool_size": 50,
+    "connection_timeout": 30,
+    "max_transaction_retry_time": 30
+  },
+  "sqlite": {
+    "auth_db": "medical_users.db",
+    "audit_db": "medical_audit.db",
+    "cache_db": "medical_cache.db"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "db": 0,
+    "password": null,
+    "socket_timeout": 5,
+    "connection_pool_max_connections": 10
+  }
+}

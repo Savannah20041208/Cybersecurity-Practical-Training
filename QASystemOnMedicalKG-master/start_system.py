@@ -17,6 +17,7 @@ from config_manager import ConfigManager
 
 class SystemLauncher:
     def __init__(self):
+        self.base_dir = os.path.dirname(os.path.abspath(__file__))
         self.config_manager = ConfigManager()
         self.main_config = self.config_manager.get_config("main")
         self.api_config = self.config_manager.get_config("api")
@@ -40,8 +41,8 @@ class SystemLauncher:
         try:
             print("🚀 启动Flask API服务器...")
             self.flask_process = subprocess.Popen([
-                sys.executable, 'app.py'
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                sys.executable, os.path.join(self.base_dir, 'app.py')
+            ], cwd=self.base_dir)
             
             print("✅ Flask API服务器已启动")
             return True
@@ -54,8 +55,8 @@ class SystemLauncher:
         try:
             print("🔌 启动WebSocket服务器...")
             self.websocket_process = subprocess.Popen([
-                sys.executable, 'websocket_server.py'
-            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                sys.executable, os.path.join(self.base_dir, 'websocket_server.py')
+            ], cwd=self.base_dir)
             
             print("✅ WebSocket服务器已启动")
             return True
@@ -97,7 +98,7 @@ class SystemLauncher:
         
         missing_files = []
         for file in required_files:
-            if not os.path.exists(file):
+            if not os.path.exists(os.path.join(self.base_dir, file)):
                 missing_files.append(file)
         
         if missing_files:

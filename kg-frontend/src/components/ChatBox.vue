@@ -43,7 +43,7 @@
         <!-- 小智头像 -->
         <div v-if="!msg.isUser" class="flex items-start gap-3">
           <div class="w-9 h-9 rounded-full bg-gradient-to-r from-gray-200 to-gray-100 flex items-center justify-center text-gray-700 text-sm shadow-sm">
-            小智
+            小兔智
           </div>
           <div class="ml-2" style="max-width: 100%">
             <div class="flex-1 max-w-[100%]">
@@ -220,6 +220,20 @@ const useExample = (text) => {
   question.value = text
 }
 
+const findSmallTalkAnswer = (userQuestion) => {
+  const trimmed = userQuestion.trim()
+  const lower = trimmed.toLowerCase()
+  if (trimmed === '你好' || trimmed === '您好' || trimmed === '在吗' || lower === 'hello' || lower === 'hi') {
+    return '你好！我是智慧医疗知识助手。\n\n你可以这样问我：\n1. 疾病相关："糖尿病有什么症状？"\n2. 症状分析："头痛发热可能是什么？"\n3. 药物咨询："阿司匹林有哪些副作用？"\n4. 健康建议："高血压患者要注意什么？"'
+  }
+
+  if (trimmed === '谢谢' || trimmed === '感谢' || trimmed === '多谢') {
+    return '不客气！你可以继续描述：症状出现多久、是否发热、年龄/既往病史等，我会结合知识图谱给你更完整的结果。'
+  }
+
+  return null
+}
+
 // 本地问答匹配函数
 const findLocalAnswer = (userQuestion) => {
   const questionLower = userQuestion.toLowerCase()
@@ -302,16 +316,14 @@ const askQuestion = async () => {
   loading.value = true
 
   try {
-    // 首先尝试本地问答匹配
-    const localAnswer = findLocalAnswer(q)
-    
-    if (localAnswer) {
+    const smallTalkAnswer = findSmallTalkAnswer(q)
+    if (smallTalkAnswer) {
       // 模拟加载延迟，提供更真实的体验
       await new Promise(resolve => setTimeout(resolve, 800))
       
       // 添加本地答案到聊天记录
       messages.value.push({
-        content: localAnswer,
+        content: smallTalkAnswer,
         isUser: false,
         timestamp: new Date(),
         isLocal: true
@@ -326,41 +338,70 @@ const askQuestion = async () => {
       })
       
     } else {
-      // 本地找不到答案，尝试后端API
-      try {
-        const response = await authStore.authenticatedRequest('/ask', {
-          method: 'POST',
-          body: JSON.stringify({ question: q })
-        })
+      const allowLocalMedical = authStore.isDemoMode
+      const localAnswer = allowLocalMedical ? findLocalAnswer(q) : null
 
-        // 添加回答到聊天记录
+      if (localAnswer) {
+        await new Promise(resolve => setTimeout(resolve, 800))
+
         messages.value.push({
-          content: response.answer || '未能获取到回答，请稍后重试。',
+          content: localAnswer,
           isUser: false,
           timestamp: new Date(),
-          hasSensitiveInfo: response.has_sensitive_info
+          isLocal: true
         })
 
-        // 如果包含敏感信息，显示提示
-        if (response.has_sensitive_info) {
+        messages.value.push({
+          content: '💡 以上信息仅供参考。如有严重症状，请及时就医。',
+          isUser: false,
+          timestamp: new Date(),
+          isInfo: true
+        })
+      } else {
+        // 走后端API（真实知识图谱问答）
+        try {
+          const response = await authStore.authenticatedRequest('/ask', {
+            method: 'POST',
+            body: JSON.stringify({ question: q })
+          })
+
+          // 添加回答到聊天记录
           messages.value.push({
-            content: '⚠️ 注意：回答中可能包含敏感信息，已进行脱敏处理。',
+            content: response.answer || '未能获取到回答，请稍后重试。',
             isUser: false,
             timestamp: new Date(),
-            isWarning: true
+            hasSensitiveInfo: response.has_sensitive_info
           })
+
+          // 如果包含敏感信息，显示提示
+          if (response.has_sensitive_info) {
+            messages.value.push({
+              content: '⚠️ 注意：回答中可能包含敏感信息，已进行脱敏处理。',
+              isUser: false,
+              timestamp: new Date(),
+              isWarning: true
+            })
+          }
+        } catch (backendError) {
+          console.log('后端API不可用:', backendError)
+
+          const msg = (backendError && backendError.message) ? backendError.message : ''
+          if (msg.includes('用户未登录') || msg.includes('缺少认证令牌') || msg.includes('未授权')) {
+            messages.value.push({
+              content: '请先登录后再提问（系统会从知识图谱中查询并返回结果）。',
+              isUser: false,
+              timestamp: new Date(),
+              isWarning: true
+            })
+          } else {
+            messages.value.push({
+              content: '后端知识图谱问答服务暂时不可用，请确认后端(5000)与Neo4j(7687)正常运行后重试。',
+              isUser: false,
+              timestamp: new Date(),
+              isError: true
+            })
+          }
         }
-        
-      } catch (backendError) {
-        console.log('后端API不可用，提供通用回答:', backendError)
-        
-        // 后端不可用时的通用回答
-        messages.value.push({
-          content: `很抱歉，我暂时无法为您提供关于"${q}"的详细信息。\n\n建议您：\n\n1. **咨询专业医生**：获得最准确的诊断和建议\n2. **查阅权威医疗资料**：如医学教科书、权威医疗网站\n3. **寻求第二意见**：重要健康问题可咨询多位专家\n\n如果是紧急情况，请立即就医或拨打急救电话。`,
-          isUser: false,
-          timestamp: new Date(),
-          isGeneral: true
-        })
       }
     }
 

@@ -1,0 +1,33 @@
+{
+  "jwt": {
+    "secret_key": "te3gBifLWPeihE7_qfpBICq7Y0jVn-g9Cm4QFBNOIO8",
+    "algorithm": "HS256",
+    "expiration_hours": 24,
+    "refresh_token_expiration_days": 7
+  },
+  "encryption": {
+    "algorithm": "AES-256-CBC",
+    "key_derivation": "PBKDF2",
+    "iterations": 100000,
+    "salt_length": 32
+  },
+  "password_policy": {
+    "min_length": 8,
+    "require_uppercase": true,
+    "require_lowercase": true,
+    "require_numbers": true,
+    "require_special_chars": true,
+    "max_age_days": 90
+  },
+  "audit": {
+    "log_all_queries": true,
+    "log_sensitive_access": true,
+    "log_failed_attempts": true,
+    "retention_days": 365
+  },
+  "sensitive_detection": {
+    "enabled": true,
+    "mask_in_logs": true,
+    "alert_on_critical": true
+  }
+}

@@ -10,6 +10,7 @@ from auth_manager import AuthManager, require_auth, require_permission
 from audit_logger import AuditLogger, get_client_ip, get_user_agent
 from sensitive_detector import SensitiveDetector
 from config_manager import ConfigManager
+from drug_lookup import DrugLookup
 
 app = Flask(__name__)
 
@@ -18,6 +19,7 @@ config_manager = ConfigManager()
 auth_manager = AuthManager()
 audit_logger = AuditLogger()
 sensitive_detector = SensitiveDetector()
+drug_lookup = DrugLookup()
 
 # 从配置管理器获取配置
 main_config = config_manager.get_config("main")
@@ -38,17 +40,25 @@ else:
 # 调用外部 Python 脚本并获取输出
 def get_answer_from_script(question):
     try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        script_path = os.path.join(base_dir, 'chatbot_graph.py')
         # 优化：使用当前Python解释器路径，避免环境不一致问题
         result = subprocess.run(
-            [sys.executable, 'chatbot_graph.py', question],
+            [sys.executable, script_path, question],
             text=True,
             capture_output=True,
             check=True,
+            cwd=base_dir,
             timeout=120  # 新增：设置超时，防止脚本无响应
         )
         return result.stdout.strip()
     except subprocess.CalledProcessError as e:
-        return f"执行脚本错误：{e.stderr}"
+        detail = (e.stderr or '').strip()
+        if not detail:
+            detail = (e.stdout or '').strip()
+        if not detail:
+            detail = str(e)
+        return f"执行脚本错误：{detail}"
     except subprocess.TimeoutExpired:
         return "脚本执行超时，请稍后再试"
     except Exception as e:
@@ -696,6 +706,68 @@ def index():
             }
         }
     })
+
+# ============ 药品补全接口（用于拍药盒识别） ============
+@app.route('/api/drug/lookup', methods=['POST'])
+@require_auth
+def drug_lookup_api():
+    """
+    药品补全查询接口
+    请求体:
+    {
+        "query": "国药准字H20000001" 或 "阿莫西林",
+        "enterprise": "某某制药有限公司"  // 可选，提高匹配精度
+    }
+    返回:
+    {
+        "match_type": "approval_no" | "name_enterprise" | "fuzzy" | "none",
+        "drug": {...},           // 精确匹配时返回完整药品信息
+        "candidates": [...],     // 模糊匹配时返回候选列表
+        "query": "原始查询"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        query = (data.get('query') or '').strip()
+        enterprise = (data.get('enterprise') or '').strip() or None
+
+        if not query:
+            return jsonify({'error': '请提供查询内容（批准文号或药品名称）'}), 400
+
+        result = drug_lookup.lookup(query, enterprise)
+
+        # 审计日志
+        audit_logger.log(
+            user_id=request.current_user.get('user_id'),
+            action='drug_lookup',
+            details={
+                'query': query,
+                'enterprise': enterprise,
+                'match_type': result.get('match_type'),
+                'found': result.get('drug') is not None or bool(result.get('candidates'))
+            },
+            ip_address=get_client_ip(),
+            user_agent=get_user_agent()
+        )
+
+        return jsonify(result)
+
+    except Exception as e:
+        return jsonify({'error': f'药品查询失败: {str(e)}'}), 500
+
+
+@app.route('/api/drug/lookup', methods=['GET'])
+def drug_lookup_get():
+    """GET 方式的药品查询（无需认证，用于快速测试）"""
+    query = request.args.get('q') or request.args.get('query') or ''
+    enterprise = request.args.get('enterprise') or None
+
+    if not query.strip():
+        return jsonify({'error': '请提供查询参数 ?q=药品名或批准文号'}), 400
+
+    result = drug_lookup.lookup(query.strip(), enterprise)
+    return jsonify(result)
+
 
 # 错误处理
 @app.errorhandler(401)

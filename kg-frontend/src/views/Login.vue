@@ -306,16 +306,8 @@ const handleRegister = async () => {
 // 演示模式处理
 const enterDemoMode = () => {
   console.log('🎯 点击演示模式按钮')
-  
-  // 设置演示用户信息到localStorage
-  localStorage.setItem('demo_mode', 'true')
-  localStorage.setItem('auth_token', 'demo_token')
-  localStorage.setItem('auth_user', JSON.stringify({
-    username: '演示用户',
-    role: 'demo'
-  }))
-  
-  console.log('✅ 演示模式数据已设置')
+
+  authStore.enableDemoMode()
   
   // 直接跳转到首页
   console.log('🚀 准备跳转到首页')
